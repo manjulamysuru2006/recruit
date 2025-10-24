@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/mongodb';
+import Job from '@/models/Job';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Advanced ATS scoring algorithm
-function analyzeResume(resumeText: string, jobDescription?: string) {
+// REAL ATS analysis comparing resume with ACTUAL job requirements
+async function analyzeResumeForJob(resumeText: string, jobId?: string) {
   const text = resumeText.toLowerCase();
   const words = text.split(/\s+/);
   const wordCount = words.length;
