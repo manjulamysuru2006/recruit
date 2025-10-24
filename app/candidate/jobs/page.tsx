@@ -26,6 +26,8 @@ export default function CandidateJobsPage() {
   const [jobType, setJobType] = useState('');
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
   const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null); // Store user's resume data
+  const [jobMatches, setJobMatches] = useState<Map<string, any>>(new Map()); // Store real match scores
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -33,9 +35,26 @@ export default function CandidateJobsPage() {
       router.push('/auth/login');
       return;
     }
+    fetchUserProfile(); // Fetch user's resume first
     fetchJobs();
     fetchApplications();
   }, [router, searchTerm, location, jobType]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/user/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      if (response.ok && data.user) {
+        setUserProfile(data.user);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const fetchJobs = async () => {
     try {
@@ -91,64 +110,39 @@ export default function CandidateJobsPage() {
   };
 
   const calculateMatchScore = (job: any): number => {
-    // Real AI-powered match score using advanced algorithms
-    // Simulates TensorFlow.js neural network with multiple feature layers
-    let score = 0;
+    // If no user profile or resume, return 0
+    if (!userProfile?.candidateProfile?.resumeText && !userProfile?.candidateProfile?.skills) {
+      return 0;
+    }
 
-    // Feature 1: Skills Analysis (40 points) - NLP-powered matching
-    const jobSkills = job.skills?.map((s: string) => s.toLowerCase()) || [];
-    const highDemandSkills = ['javascript', 'python', 'react', 'node', 'typescript', 'aws', 'docker', 'kubernetes', 'machine learning'];
+    const resumeText = (userProfile.candidateProfile.resumeText || '').toLowerCase();
+    const candidateSkills = userProfile.candidateProfile.skills || [];
+    const jobSkills = job.skills || [];
     
-    const hasHighDemandSkills = jobSkills.filter((skill: string) =>
-      highDemandSkills.some((hds: string) => skill.includes(hds))
-    ).length;
+    if (jobSkills.length === 0) {
+      return 50; // Default if no skills specified
+    }
+
+    // REAL COMPARISON: Count how many job skills are in candidate's resume
+    let matchedCount = 0;
     
-    score += Math.min(40, (jobSkills.length * 3) + (hasHighDemandSkills * 8));
-
-    // Feature 2: Experience Level Weighting (25 points) - Neural network activation
-    const expLevelScores: any = {
-      entry: 20,      // Good for many candidates
-      mid: 25,        // Optimal middle ground
-      senior: 22,     // Requires more experience
-      lead: 18,       // Specialized
-      executive: 15   // Very specialized
-    };
-    score += expLevelScores[job.experienceLevel] || 20;
-
-    // Feature 3: Remote Work Preference (15 points) - Binary feature classifier
-    if (job.location?.remote) {
-      score += 15; // High value for remote positions
-    } else if (job.location?.city) {
-      score += 8; // On-site has value but less preferred
-    } else {
-      score += 10; // Neutral
+    for (const jobSkill of jobSkills) {
+      const skillLower = jobSkill.toLowerCase();
+      // Check if skill is in resume text OR in candidate's skills array
+      const inResume = resumeText.includes(skillLower);
+      const inSkills = candidateSkills.some((cs: string) => 
+        cs.toLowerCase().includes(skillLower) || skillLower.includes(cs.toLowerCase())
+      );
+      
+      if (inResume || inSkills) {
+        matchedCount++;
+      }
     }
-
-    // Feature 4: Salary Competitiveness (10 points) - Regression scoring
-    if (job.salary?.max) {
-      if (job.salary.max >= 120000) score += 10;
-      else if (job.salary.max >= 90000) score += 8;
-      else if (job.salary.max >= 60000) score += 6;
-      else score += 4;
-    } else {
-      score += 5;
-    }
-
-    // Feature 5: Job Freshness & Activity (10 points) - Time series feature
-    if (job.createdAt) {
-      const daysSincePosted = (new Date().getTime() - new Date(job.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSincePosted <= 3) score += 10;       // Very fresh
-      else if (daysSincePosted <= 7) score += 8;   // Recent
-      else if (daysSincePosted <= 14) score += 5;  // Moderately recent
-      else score += 2;                              // Older posting
-    } else {
-      score += 5;
-    }
-
-    // Apply sigmoid-like activation function for smooth distribution
-    // Ensures scores are well-distributed between 40-95
-    const normalized = 40 + (score * 0.55); // Scale to 40-95 range
-    return Math.min(95, Math.max(40, Math.round(normalized)));
+    
+    // Calculate percentage: (matched skills / total required skills) * 100
+    const matchPercentage = Math.round((matchedCount / jobSkills.length) * 100);
+    
+    return matchPercentage;
   };
 
   return (
