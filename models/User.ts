@@ -29,7 +29,8 @@ const UserSchema = new Schema({
   },
   // Candidate specific fields
   candidateProfile: {
-    resume: String,
+    resume: String, // File URL or path
+    resumeText: String, // Actual resume text for matching
     skills: [String],
     experience: [{
       title: String,
@@ -61,6 +62,13 @@ const UserSchema = new Schema({
       minSalary: Number,
       maxSalary: Number,
       remote: Boolean,
+    },
+    resumeAnalysis: {
+      score: Number,
+      technicalSkills: [String],
+      softSkills: [String],
+      strengths: [String],
+      keywords: [String],
     },
   },
   // Recruiter specific fields
