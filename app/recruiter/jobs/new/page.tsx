@@ -43,6 +43,16 @@ export default function NewJobPage() {
     setLoading(true);
 
     try {
+      // Validate salary range
+      const minSalary = parseInt(formData.salary.min) || 0;
+      const maxSalary = parseInt(formData.salary.max) || 0;
+      
+      if (minSalary > maxSalary && maxSalary > 0) {
+        alert('Minimum salary cannot be greater than maximum salary');
+        setLoading(false);
+        return;
+      }
+
       const token = localStorage.getItem('token');
       // Decode token to get userId (in production, do this server-side)
       const payload = JSON.parse(atob(token!.split('.')[1]));
@@ -62,8 +72,8 @@ export default function NewJobPage() {
           benefits: formData.benefits.filter(b => b.trim()),
           salary: {
             ...formData.salary,
-            min: parseInt(formData.salary.min) || 0,
-            max: parseInt(formData.salary.max) || 0,
+            min: minSalary,
+            max: maxSalary,
           },
         }),
       });

@@ -239,6 +239,11 @@ export default function CandidateJobsPage() {
                 const matchColor = matchScore >= 80 ? 'bg-green-500' : matchScore >= 60 ? 'bg-yellow-500' : 'bg-gray-400';
                 const matchTextColor = matchScore >= 80 ? 'text-green-700' : matchScore >= 60 ? 'text-yellow-700' : 'text-gray-700';
                 
+                // Check if job is new (posted within last 24 hours)
+                const jobAge = job.createdAt ? (new Date().getTime() - new Date(job.createdAt).getTime()) / (1000 * 60 * 60) : null;
+                const isNewJob = jobAge !== null && jobAge <= 24;
+                const isVeryNewJob = jobAge !== null && jobAge <= 1; // Posted in last 1 hour
+                
                 return (
                   <Link
                     key={job._id}
@@ -247,6 +252,23 @@ export default function CandidateJobsPage() {
                       hasApplied ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-blue-300'
                     }`}
                   >
+                    {/* Early Apply Badge for new jobs */}
+                    {isNewJob && !hasApplied && (
+                      <div className="absolute top-4 left-4">
+                        <div className={`flex items-center gap-2 px-3 py-1.5 ${
+                          isVeryNewJob 
+                            ? 'bg-red-500 animate-pulse' 
+                            : 'bg-orange-500'
+                        } text-white rounded-full text-sm font-bold shadow-lg`}>
+                          <Clock className="w-4 h-4" />
+                          {isVeryNewJob 
+                            ? '🔥 Just Posted!' 
+                            : '⚡ Early Apply'
+                          }
+                        </div>
+                      </div>
+                    )}
+
                     {/* AI Match Score Badge - Prominent */}
                     <div className="absolute top-4 right-4">
                       <div className={`flex items-center gap-2 px-4 py-2 ${matchColor} bg-opacity-10 border-2 border-current rounded-full ${matchTextColor}`}>
@@ -256,7 +278,7 @@ export default function CandidateJobsPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-start justify-between mb-4 pr-32">
+                    <div className="flex items-start justify-between mb-4 pr-32 pl-32">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-xl font-bold text-gray-900">{job.title}</h3>

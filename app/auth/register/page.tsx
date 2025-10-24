@@ -4,7 +4,7 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, Briefcase, Building, MapPin } from 'lucide-react';
+import { Mail, Lock, User, Briefcase, Building, MapPin, Upload, FileText } from 'lucide-react';
 
 function RegisterForm() {
   const router = useRouter();
@@ -22,25 +22,84 @@ function RegisterForm() {
     company: '',
     position: '',
   });
+  const [resume, setResume] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleResumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      // Validate file type
+      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+      if (!validTypes.includes(file.type)) {
+        setError('Please upload a PDF, DOC, DOCX, or TXT file');
+        return;
+      }
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Resume file size must be less than 5MB');
+        return;
+      }
+      setResume(file);
+      setError('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Validate password strength
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+    
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      setError('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
+    // Validate required fields
+    if (!formData.firstName || !formData.lastName) {
+      setError('First name and last name are required');
+      return;
+    }
+
+    // For candidates, resume is recommended but not required
+    if (formData.role === 'candidate' && !resume) {
+      if (!confirm('You haven\'t uploaded a resume. This will help us match you with better jobs. Continue without resume?')) {
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
+      const submitData = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        submitData.append(key, value);
+      });
+      
+      if (resume) {
+        submitData.append('resume', resume);
+      }
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: submitData, // Changed from JSON to FormData
       });
 
       const data = await response.json();
@@ -177,6 +236,44 @@ function RegisterForm() {
                   placeholder="+1 (555) 000-0000"
                 />
               </div>
+
+              {/* Candidate-specific fields */}
+              {formData.role === 'candidate' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Upload Resume (Optional - Helps with AI matching)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.txt"
+                      onChange={handleResumeChange}
+                      className="hidden"
+                      id="resume-upload"
+                    />
+                    <label
+                      htmlFor="resume-upload"
+                      className="flex items-center justify-center gap-3 px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all"
+                    >
+                      {resume ? (
+                        <>
+                          <FileText className="w-5 h-5 text-blue-600" />
+                          <span className="text-slate-700 font-medium">{resume.name}</span>
+                          <span className="text-xs text-slate-500">({(resume.size / 1024).toFixed(1)} KB)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5 text-slate-400" />
+                          <span className="text-slate-600">Click to upload PDF, DOC, DOCX, or TXT (Max 5MB)</span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    💡 Uploading your resume helps our AI match you with relevant jobs automatically
+                  </p>
+                </div>
+              )}
 
               {/* Recruiter-specific fields */}
               {formData.role === 'recruiter' && (

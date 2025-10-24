@@ -100,6 +100,57 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     
+    // Validate required fields
+    if (!body.title || !body.company || !body.description) {
+      return NextResponse.json(
+        { error: 'Title, company, and description are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate salary range
+    if (body.salary) {
+      const minSalary = parseInt(body.salary.min) || 0;
+      const maxSalary = parseInt(body.salary.max) || 0;
+      
+      if (minSalary < 0 || maxSalary < 0) {
+        return NextResponse.json(
+          { error: 'Salary values cannot be negative' },
+          { status: 400 }
+        );
+      }
+      
+      if (maxSalary > 0 && minSalary > maxSalary) {
+        return NextResponse.json(
+          { error: 'Minimum salary cannot be greater than maximum salary' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Remove duplicate skills
+    if (body.skills && Array.isArray(body.skills)) {
+      body.skills = [...new Set(body.skills.map((s: string) => s.trim()))].filter(Boolean);
+    }
+
+    // Remove duplicate requirements
+    if (body.requirements && Array.isArray(body.requirements)) {
+      body.requirements = [...new Set(body.requirements.map((r: string) => r.trim()))].filter(Boolean);
+    }
+
+    // Remove duplicate responsibilities
+    if (body.responsibilities && Array.isArray(body.responsibilities)) {
+      body.responsibilities = [...new Set(body.responsibilities.map((r: string) => r.trim()))].filter(Boolean);
+    }
+
+    // Validate deadline is in the future
+    if (body.deadline && new Date(body.deadline) < new Date()) {
+      return NextResponse.json(
+        { error: 'Application deadline must be in the future' },
+        { status: 400 }
+      );
+    }
+    
     // CRITICAL FIX: Always use the authenticated user's ID as recruiterId
     const job = await Job.create({
       ...body,

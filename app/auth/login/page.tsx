@@ -21,6 +21,20 @@ function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Validate password is not empty
+    if (!formData.password || formData.password.trim().length === 0) {
+      setError('Please enter your password');
+      return;
+    }
+
     setLoading(true);
 
     try {

@@ -18,6 +18,7 @@ import {
   User,
   Mail,
   Phone,
+  FileText,
 } from 'lucide-react';
 
 export default function RecruiterJobDetailsPage() {
@@ -178,23 +179,56 @@ export default function RecruiterJobDetailsPage() {
                               <div>
                                 <h4 className="font-semibold text-gray-900">{app.candidateId?.name || 'Candidate'}</h4>
                                 <p className="text-sm text-gray-600">{app.candidateId?.email}</p>
+                                {app.candidateId?.candidateProfile?.resumeAnalysis?.score && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <span className="text-xs font-semibold text-purple-600">
+                                      📊 Resume Score: {app.candidateId.candidateProfile.resumeAnalysis.score}/100
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              app.status === 'applied' ? 'bg-blue-100 text-blue-700' :
-                              app.status === 'reviewed' ? 'bg-yellow-100 text-yellow-700' :
-                              app.status === 'shortlisted' ? 'bg-purple-100 text-purple-700' :
-                              app.status === 'interview' ? 'bg-green-100 text-green-700' :
-                              app.status === 'offered' ? 'bg-green-200 text-green-800' :
-                              app.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {app.status}
-                            </span>
+                            <div className="flex flex-col items-end gap-2">
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                app.status === 'applied' ? 'bg-blue-100 text-blue-700' :
+                                app.status === 'reviewed' ? 'bg-yellow-100 text-yellow-700' :
+                                app.status === 'shortlisted' ? 'bg-purple-100 text-purple-700' :
+                                app.status === 'interview' ? 'bg-green-100 text-green-700' :
+                                app.status === 'offered' ? 'bg-green-200 text-green-800' :
+                                app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {app.status}
+                              </span>
+                              {app.candidateId?.candidateProfile?.skills && app.candidateId.candidateProfile.skills.length > 0 && (
+                                <span className="text-xs text-gray-600">
+                                  {app.candidateId.candidateProfile.skills.length} skills
+                                </span>
+                              )}
+                            </div>
                           </div>
                           
+                          {/* Skills Display */}
+                          {app.candidateId?.candidateProfile?.skills && app.candidateId.candidateProfile.skills.length > 0 && (
+                            <div className="mb-3">
+                              <div className="text-xs font-semibold text-gray-700 mb-1">Skills:</div>
+                              <div className="flex flex-wrap gap-1">
+                                {app.candidateId.candidateProfile.skills.slice(0, 8).map((skill: string, idx: number) => (
+                                  <span key={idx} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                    {skill}
+                                  </span>
+                                ))}
+                                {app.candidateId.candidateProfile.skills.length > 8 && (
+                                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                                    +{app.candidateId.candidateProfile.skills.length - 8} more
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                           {app.coverLetter && (
-                            <p className="text-sm text-gray-700 mb-3">{app.coverLetter}</p>
+                            <p className="text-sm text-gray-700 mb-3 italic">&quot;{app.coverLetter}&quot;</p>
                           )}
                           
                           <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
@@ -207,31 +241,56 @@ export default function RecruiterJobDetailsPage() {
                                 </span>
                               )}
                             </div>
-                            {app.status === 'applied' && (
-                              <button
-                                onClick={async () => {
-                                  const token = localStorage.getItem('token');
-                                  const response = await fetch('/api/interview-pipeline', {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                      'Authorization': `Bearer ${token}`
-                                    },
-                                    body: JSON.stringify({
-                                      applicationId: app._id,
-                                      action: 'initiate',
-                                    })
-                                  });
-                                  if (response.ok) {
-                                    alert('Candidate added to interview pipeline!');
-                                    window.location.reload();
-                                  }
-                                }}
-                                className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
-                              >
-                                Select for Interview
-                              </button>
-                            )}
+                            <div className="flex gap-2">
+                              {/* View Resume Button */}
+                              {(app.resume || app.candidateId?.candidateProfile?.resumeText) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    // Create modal or download resume
+                                    const resumeText = app.candidateId?.candidateProfile?.resumeText || 'Resume not available';
+                                    const blob = new Blob([resumeText], { type: 'text/plain' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `${app.candidateId?.name || 'candidate'}_resume.txt`;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                  }}
+                                  className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 flex items-center gap-1"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                  View Resume
+                                </button>
+                              )}
+                              {app.status === 'applied' && (
+                                <button
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    const token = localStorage.getItem('token');
+                                    const response = await fetch('/api/interview-pipeline', {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${token}`
+                                      },
+                                      body: JSON.stringify({
+                                        applicationId: app._id,
+                                        action: 'initiate',
+                                        resumeScore: app.candidateId?.candidateProfile?.resumeAnalysis?.score || 0
+                                      })
+                                    });
+                                    if (response.ok) {
+                                      alert('Candidate added to interview pipeline!');
+                                      window.location.reload();
+                                    }
+                                  }}
+                                  className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+                                >
+                                  Select for Interview
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
