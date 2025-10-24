@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Application from '@/models/Application';
+import Job from '@/models/Job';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -15,8 +16,22 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
     await dbConnect();
+
+    // CRITICAL FIX: Verify job ownership
+    const job = await Job.findById(params.id);
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
+
+    // CRITICAL FIX: Only allow recruiter who owns the job to see applications
+    if (decoded.role === 'recruiter' && job.recruiterId.toString() !== decoded.userId) {
+      return NextResponse.json(
+        { error: 'Forbidden - You can only view applications for your own jobs' },
+        { status: 403 }
+      );
+    }
 
     // Fetch all applications for this job
     const applications = await Application.find({ jobId: params.id })

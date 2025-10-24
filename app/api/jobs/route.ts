@@ -2,11 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Job from '@/models/Job';
 import User from '@/models/User';
+import jwt from 'jsonwebtoken';
+
+// Helper function to verify JWT and get user
+function getUserFromToken(request: NextRequest): { userId: string; role: string } | null {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+    return { userId: decoded.userId, role: decoded.role };
+  } catch (error) {
+    return null;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
 
+    const user = getUserFromToken(request);
+    
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search');
     const location = searchParams.get('location');
@@ -15,6 +34,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
 
     const query: any = { status: 'active' };
+
+    // CRITICAL FIX: If user is a recruiter, only show THEIR jobs
+    if (user && user.role === 'recruiter') {
+      query.recruiterId = user.userId;
+    }
 
     if (search) {
       query.$text = { $search: search };
@@ -58,12 +82,28 @@ export async function POST(request: NextRequest) {
   try {
     await dbConnect();
 
+    // CRITICAL FIX: Verify user is authenticated and is a recruiter
+    const user = getUserFromToken(request);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please login' },
+        { status: 401 }
+      );
+    }
+
+    if (user.role !== 'recruiter') {
+      return NextResponse.json(
+        { error: 'Forbidden - Only recruiters can post jobs' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     
-    // In production, extract userId from JWT token
-    // For now, assuming userId is passed in body
+    // CRITICAL FIX: Always use the authenticated user's ID as recruiterId
     const job = await Job.create({
       ...body,
+      recruiterId: user.userId, // Force use of authenticated user's ID
       status: 'active',
       applicationsCount: 0,
       viewsCount: 0,
