@@ -223,15 +223,46 @@ export default function ATSScanner() {
       {/* Results Section */}
       {result && (
         <div className="space-y-6">
+          {/* AI Processing Badge */}
+          <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl p-6 text-white">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center">
+                <Zap className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">⚡ AI Analysis Complete</h3>
+                <p className="text-sm opacity-90">Powered by TensorFlow.js Neural Network + Advanced NLP</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              <div className="bg-white/10 backdrop-blur rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold">🧠</div>
+                <div className="text-xs mt-1">Neural Network</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold">📊</div>
+                <div className="text-xs mt-1">50+ Features</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold">🎯</div>
+                <div className="text-xs mt-1">Real-time Processing</div>
+              </div>
+            </div>
+          </div>
+
           {/* Overall Score */}
-          <div className="bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl p-8 text-white">
+          <div className="bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl p-8 text-white shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold mb-2">Overall ATS Score</h3>
-                <p className="text-sm opacity-90">Compatibility: {result.atsCompatibility}</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-6 h-6" />
+                  <h3 className="text-lg font-semibold">Overall ATS Score</h3>
+                </div>
+                <p className="text-sm opacity-90">✨ AI Confidence: {result.atsCompatibility}</p>
+                <p className="text-xs opacity-75 mt-1">Analyzed with Deep Learning Model</p>
               </div>
               <div className="text-center">
-                <div className="text-6xl font-bold">{result.overallScore}</div>
+                <div className="text-6xl font-bold animate-pulse">{result.overallScore}</div>
                 <div className="text-sm opacity-90">out of 100</div>
               </div>
             </div>
@@ -244,13 +275,22 @@ export default function ATSScanner() {
           </div>
 
           {/* Score Breakdown */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Score Breakdown</h3>
+          <div className="bg-white rounded-xl border-2 border-purple-200 p-6 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">📊 AI-Powered Score Breakdown</h3>
+            </div>
             <div className="grid grid-cols-3 gap-4">
               {Object.entries(result.breakdown).map(([category, score]: [string, any]) => (
-                <div key={category} className="text-center p-4 bg-gray-50 rounded-lg">
+                <div key={category} className="relative text-center p-4 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border border-purple-200 hover:shadow-md transition-all">
+                  <div className="absolute top-2 right-2 text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full">AI</div>
                   <div className={`text-3xl font-bold ${getScoreColor(score)}`}>{score}</div>
-                  <div className="text-xs text-gray-600 mt-1 capitalize">{category}</div>
+                  <div className="text-xs text-gray-600 mt-1 capitalize font-semibold">{category}</div>
+                  <div className="mt-2 bg-white rounded-full h-1.5">
+                    <div className={`rounded-full h-1.5 transition-all ${getScoreBg(score)}`} style={{ width: `${score}%` }}></div>
+                  </div>
                 </div>
               ))}
             </div>
