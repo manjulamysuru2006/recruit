@@ -11,6 +11,7 @@ import {
   LogOut,
   Sparkles,
   Search,
+  Brain,
 } from 'lucide-react';
 
 export default function CandidateSidebar() {
@@ -76,6 +77,18 @@ export default function CandidateSidebar() {
           >
             <Sparkles className="w-5 h-5" />
             <span>AI Resume Scanner</span>
+          </Link>
+          <Link
+            href="/candidate/ai-features"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg relative ${
+              isActive('/candidate/ai-features')
+                ? 'bg-gradient-to-r from-purple-50 to-blue-50 text-purple-600 font-medium'
+                : 'text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50'
+            }`}
+          >
+            <Brain className="w-5 h-5" />
+            <span>AI Features</span>
+            <span className="absolute right-3 px-2 py-0.5 bg-purple-600 text-white text-xs rounded-full font-normal">NEW</span>
           </Link>
           <Link
             href="/candidate/messages"
