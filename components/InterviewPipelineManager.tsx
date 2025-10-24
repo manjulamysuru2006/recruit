@@ -59,15 +59,19 @@ export default function InterviewPipelineManager() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          applicationId: selectedPipeline?._id,
+          pipelineId: pipelineId,
           action: 'move_to_next',
         })
       });
 
       if (response.ok) {
         alert('Candidate moved to next stage!');
-        fetchPipelines();
-        setSelectedPipeline(null);
+        await fetchPipelines();
+        // Refresh the selected pipeline
+        const updatedPipeline = pipelines.find(p => p._id === pipelineId);
+        if (updatedPipeline) {
+          setSelectedPipeline(updatedPipeline);
+        }
       }
     } catch (error) {
       console.error('Error moving candidate:', error);
@@ -86,14 +90,14 @@ export default function InterviewPipelineManager() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          applicationId: selectedPipeline?._id,
+          pipelineId: selectedPipeline?._id,
           action: 'reject',
         })
       });
 
       if (response.ok) {
         alert('Candidate rejected');
-        fetchPipelines();
+        await fetchPipelines();
         setSelectedPipeline(null);
       }
     } catch (error) {
@@ -113,14 +117,14 @@ export default function InterviewPipelineManager() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          applicationId: selectedPipeline?._id,
+          pipelineId: selectedPipeline?._id,
           action: 'hire',
         })
       });
 
       if (response.ok) {
         alert('🎉 Candidate hired!');
-        fetchPipelines();
+        await fetchPipelines();
         setSelectedPipeline(null);
       }
     } catch (error) {
@@ -140,7 +144,7 @@ export default function InterviewPipelineManager() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          applicationId: selectedPipeline?._id,
+          pipelineId: selectedPipeline?._id,
           action: 'add_note',
           note,
         })
@@ -148,7 +152,14 @@ export default function InterviewPipelineManager() {
 
       if (response.ok) {
         setNote('');
-        fetchPipelines();
+        await fetchPipelines();
+        // Refresh the selected pipeline
+        if (selectedPipeline) {
+          const updatedPipeline = pipelines.find(p => p._id === selectedPipeline._id);
+          if (updatedPipeline) {
+            setSelectedPipeline(updatedPipeline);
+          }
+        }
       }
     } catch (error) {
       console.error('Error adding note:', error);

@@ -51,7 +51,7 @@ export default function RecruiterJobDetailsPage() {
       });
 
     // Fetch applications for this job
-    fetch(`/api/applications?jobId=${params.id}`, {
+    fetch(`/api/jobs/${params.id}/applications`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())

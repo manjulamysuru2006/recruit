@@ -35,7 +35,7 @@ export async function GET(
 
     // Fetch all applications for this job
     const applications = await Application.find({ jobId: params.id })
-      .populate('candidateId', 'email profile candidateProfile')
+      .populate('candidateId', 'name email phone profile candidateProfile')
       .populate('jobId', 'title company')
       .sort({ createdAt: -1 });
 

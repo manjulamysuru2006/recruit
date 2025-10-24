@@ -19,9 +19,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
+    const includeAll = searchParams.get('includeAll'); // Include rejected/hired
 
     const query: any = { recruiterId: decoded.userId };
     if (jobId) query.jobId = jobId;
+    
+    // By default, only show active pipelines (not rejected or hired)
+    if (!includeAll) {
+      query.status = { $in: ['active', null] }; // null for backward compatibility
+    }
 
     const pipelines = await InterviewPipeline.find(query)
       .populate('candidateId', 'name email phone skills')
@@ -47,20 +53,23 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
-    const { applicationId, action, stageData } = body;
+    const { applicationId, pipelineId, action, stageData } = body;
 
-    // Fetch application
-    const application = await Application.findById(applicationId);
-    if (!application) {
-      return NextResponse.json({ error: 'Application not found' }, { status: 404 });
-    }
-
-    // Check if pipeline already exists
-    let pipeline = await InterviewPipeline.findOne({ applicationId });
-
+    // Handle initiate action (uses applicationId)
     if (action === 'initiate') {
-      // Create new pipeline
-      if (pipeline) {
+      if (!applicationId) {
+        return NextResponse.json({ error: 'Application ID required' }, { status: 400 });
+      }
+
+      // Fetch application
+      const application = await Application.findById(applicationId);
+      if (!application) {
+        return NextResponse.json({ error: 'Application not found' }, { status: 404 });
+      }
+
+      // Check if pipeline already exists
+      const existingPipeline = await InterviewPipeline.findOne({ applicationId });
+      if (existingPipeline) {
         return NextResponse.json({ error: 'Pipeline already exists' }, { status: 400 });
       }
 
@@ -73,7 +82,7 @@ export async function POST(request: NextRequest) {
         { name: 'Final Round', status: 'pending' },
       ];
 
-      pipeline = await InterviewPipeline.create({
+      const pipeline = await InterviewPipeline.create({
         applicationId,
         jobId: application.jobId,
         candidateId: application.candidateId,
@@ -91,11 +100,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ pipeline, message: 'Candidate moved to interview pipeline' });
     }
 
-    if (action === 'move_to_next') {
-      if (!pipeline) {
-        return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
-      }
+    // For all other actions, use pipelineId
+    if (!pipelineId) {
+      return NextResponse.json({ error: 'Pipeline ID required' }, { status: 400 });
+    }
 
+    let pipeline = await InterviewPipeline.findById(pipelineId);
+    if (!pipeline) {
+      return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
+    }
+
+    // Verify ownership
+    if (pipeline.recruiterId.toString() !== decoded.userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (action === 'move_to_next') {
       // Update current stage
       const stageIndex = pipeline.stages.findIndex((s: any) => s.status === 'pending' || s.status === 'scheduled');
       if (stageIndex !== -1) {
@@ -115,7 +135,7 @@ export async function POST(request: NextRequest) {
       }
 
       await pipeline.save();
-      await Application.findByIdAndUpdate(applicationId, {
+      await Application.findByIdAndUpdate(pipeline.applicationId, {
         status: 'interview',
       });
 
@@ -123,15 +143,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'reject') {
-      if (!pipeline) {
-        return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
-      }
-
       pipeline.status = 'rejected';
       pipeline.currentStage = 'rejected';
       await pipeline.save();
 
-      await Application.findByIdAndUpdate(applicationId, {
+      await Application.findByIdAndUpdate(pipeline.applicationId, {
         status: 'rejected',
       });
 
@@ -139,15 +155,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'hire') {
-      if (!pipeline) {
-        return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
-      }
-
       pipeline.status = 'hired';
       pipeline.currentStage = 'hired';
       await pipeline.save();
 
-      await Application.findByIdAndUpdate(applicationId, {
+      await Application.findByIdAndUpdate(pipeline.applicationId, {
         status: 'offered',
       });
 
@@ -155,10 +167,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'add_note') {
-      if (!pipeline) {
-        return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
-      }
-
       pipeline.notes.push({
         author: decoded.userId,
         content: body.note,
@@ -172,7 +180,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: any) {
     console.error('Error managing pipeline:', error);
-    return NextResponse.json({ error: 'Failed to manage pipeline' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to manage pipeline', details: error.message }, { status: 500 });
   }
 }
 
