@@ -326,3 +326,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to analyze resume', details: error.message }, { status: 500 });
   }
 }
+

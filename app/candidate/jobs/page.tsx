@@ -100,7 +100,7 @@ export default function CandidateJobsPage() {
         <div className="p-6">
           <div className="flex items-center gap-2 mb-8">
             <Briefcase className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold">Aayush</span>
+            <span className="text-xl font-bold">Loom</span>
           </div>
 
           <nav className="space-y-2">
@@ -300,3 +300,4 @@ export default function CandidateJobsPage() {
     </div>
   );
 }
+

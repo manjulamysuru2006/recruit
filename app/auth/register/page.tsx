@@ -69,7 +69,7 @@ function RegisterForm() {
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white">
             <Link href="/" className="inline-flex items-center gap-2 mb-6 hover:opacity-80">
               <Briefcase className="w-6 h-6" />
-              <span className="text-xl font-bold">Aayush</span>
+              <span className="text-xl font-bold">Loom</span>
             </Link>
             <h1 className="text-3xl font-bold mb-2">Create Account</h1>
             <p className="opacity-90">Join the intelligent recruitment platform</p>
@@ -274,3 +274,4 @@ export default function RegisterPage() {
     </Suspense>
   );
 }
+

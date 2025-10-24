@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Aayush Recruitment Platform",
+  title: "Loom Recruiting Platform",
   description: "AI-Powered Recruitment Platform with ML-based Job Matching",
 };
 
@@ -20,3 +20,4 @@ export default function RootLayout({
     </html>
   );
 }
+

@@ -63,7 +63,7 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <Briefcase className="w-8 h-8 text-blue-600" />
               <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Aayush
+                Loom Recruiting Platform
               </span>
             </div>
             <div className="flex items-center gap-4">
@@ -220,13 +220,14 @@ export default function Home() {
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Briefcase className="w-6 h-6" />
-            <span className="text-xl font-bold">Aayush</span>
+            <span className="text-xl font-bold">Loom Recruiting Platform</span>
           </div>
           <p className="text-slate-400">
-            © 2024 Aayush Recruitment Platform. All rights reserved.
+            © 2024 Loom Recruiting Platform. All rights reserved.
           </p>
         </div>
       </footer>
     </div>
   );
 }
+

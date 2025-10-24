@@ -81,9 +81,10 @@ export async function POST(
     await dbConnect();
 
     const body = await request.json();
-    const { message } = body;
+    const { content, message } = body;
+    const messageText = content || message; // Support both field names
 
-    if (!message || !message.trim()) {
+    if (!messageText || !messageText.trim()) {
       return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 });
     }
 
@@ -105,7 +106,7 @@ export async function POST(
         applicationId: params.id,
         messages: [],
         lastMessage: {
-          content: message,
+          content: messageText,
           createdAt: new Date(),
         },
       });
@@ -114,14 +115,14 @@ export async function POST(
     // Add message to chat
     chat.messages.push({
       sender: decoded.userId,
-      content: message,
+      content: messageText,
       type: 'text',
       read: false,
       createdAt: new Date(),
     });
 
     chat.lastMessage = {
-      content: message,
+      content: messageText,
       createdAt: new Date(),
     };
     chat.updatedAt = new Date();
