@@ -8,8 +8,34 @@ export default function ATSScanner() {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [jobDescription, setJobDescription] = useState('');
+  const [jobSkills, setJobSkills] = useState('');
+  const [jobRequirements, setJobRequirements] = useState('');
   const [resumeText, setResumeText] = useState('');
   const [inputMode, setInputMode] = useState<'upload' | 'paste'>('upload');
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState('');
+  const [loadingJobs, setLoadingJobs] = useState(false);
+
+  // Fetch available jobs
+  const fetchJobs = async () => {
+    setLoadingJobs(true);
+    try {
+      const response = await fetch('/api/jobs');
+      const data = await response.json();
+      if (data.jobs) {
+        setJobs(data.jobs);
+      }
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
+
+  // Load jobs when component mounts
+  useState(() => {
+    fetchJobs();
+  });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -19,8 +45,19 @@ export default function ATSScanner() {
   };
 
   const analyzeResume = async () => {
+    // MANDATORY VALIDATIONS
     if (!file && !resumeText.trim()) {
-      alert('Please upload a file or paste your resume text');
+      alert('⚠️ Please upload a resume file or paste your resume text');
+      return;
+    }
+
+    if (!jobDescription.trim()) {
+      alert('⚠️ Job Description is REQUIRED! Please enter the job description to compare your resume against.');
+      return;
+    }
+
+    if (!jobSkills.trim()) {
+      alert('⚠️ Required Skills are REQUIRED! Please list the skills needed for this job (comma-separated).');
       return;
     }
 
@@ -36,8 +73,16 @@ export default function ATSScanner() {
       formData.append('resume', textFile);
     }
     
-    if (jobDescription) {
-      formData.append('jobDescription', jobDescription);
+    // Send job details for REAL comparison
+    formData.append('jobDescription', jobDescription);
+    formData.append('jobSkills', jobSkills);
+    
+    if (jobRequirements.trim()) {
+      formData.append('jobRequirements', jobRequirements);
+    }
+    
+    if (selectedJobId) {
+      formData.append('jobId', selectedJobId);
     }
 
     try {
@@ -185,38 +230,82 @@ export default function ATSScanner() {
             </div>
           </div>
 
-          {/* Job Description (Optional) */}
+          {/* Job Description (REQUIRED) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Job Description (Optional - for better matching)
+              <span className="text-red-600">*</span> Job Description (REQUIRED for comparison)
             </label>
             <textarea
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              placeholder="Paste the FULL job description here. This is used to compare your resume against specific role requirements..."
+              rows={6}
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              💡 Include complete job description with responsibilities and qualifications
+            </p>
+          </div>
+
+          {/* Required Skills (REQUIRED) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <span className="text-red-600">*</span> Required Skills (REQUIRED)
+            </label>
+            <input
+              type="text"
+              value={jobSkills}
+              onChange={(e) => setJobSkills(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              placeholder="e.g., React, Node.js, MongoDB, AWS, Docker (comma-separated)"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              💡 List all technical skills required for the job, separated by commas
+            </p>
+          </div>
+
+          {/* Job Requirements (Optional but recommended) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Job Requirements (Optional but recommended)
+            </label>
+            <textarea
+              value={jobRequirements}
+              onChange={(e) => setJobRequirements(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              placeholder="Paste the job description here for more accurate analysis..."
-              rows={4}
+              placeholder="e.g., 3+ years experience, Bachelor's degree, Strong communication skills..."
+              rows={3}
             />
           </div>
 
           {/* Analyze Button */}
           <button
             onClick={analyzeResume}
-            disabled={(!file && !resumeText.trim()) || analyzing}
-            className="w-full py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
+            disabled={(!file && !resumeText.trim()) || analyzing || !jobDescription.trim() || !jobSkills.trim()}
+            className="w-full py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {analyzing ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                Analyzing...
+                Analyzing Resume vs Job...
               </>
             ) : (
               <>
                 <Target className="w-5 h-5" />
-                Analyze Resume
+                {!jobDescription.trim() || !jobSkills.trim() 
+                  ? 'Fill Required Fields to Analyze' 
+                  : 'Compare Resume with Job Requirements'}
               </>
             )}
           </button>
+          
+          {(!jobDescription.trim() || !jobSkills.trim()) && (
+            <p className="text-sm text-red-600 text-center">
+              ⚠️ Job Description and Required Skills are mandatory for analysis
+            </p>
+          )}
         </div>
       </div>
 

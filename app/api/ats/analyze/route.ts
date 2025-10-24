@@ -291,18 +291,32 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('resume') as File;
     const jobDescription = formData.get('jobDescription') as string;
+    const jobSkills = formData.get('jobSkills') as string;
+    const jobRequirements = formData.get('jobRequirements') as string;
+    const jobId = formData.get('jobId') as string;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: 'No resume file provided' }, { status: 400 });
     }
 
-    let resumeText = '';
+    // MANDATORY: Job description and skills are required!
+    if (!jobDescription || jobDescription.trim().length < 50) {
+      return NextResponse.json({ 
+        error: 'Job Description is REQUIRED and must be at least 50 characters. We need it to compare your resume accurately.' 
+      }, { status: 400 });
+    }
 
-    // Extract text based on file type
-    if (file.type === 'text/plain') {
+    if (!jobSkills || jobSkills.trim().length < 5) {
+      return NextResponse.json({ 
+        error: 'Required Skills are REQUIRED. Please list the skills needed for this job (comma-separated).' 
+      }, { status: 400 });
+    }
+
+    // Extract resume text
+    let resumeText = '';
+    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
       resumeText = await file.text();
     } else {
-      // For PDF and DOCX, read as text (user can paste content or we can add libraries later)
       const buffer = await file.arrayBuffer();
       const decoder = new TextDecoder('utf-8');
       resumeText = decoder.decode(buffer);
@@ -310,21 +324,195 @@ export async function POST(request: NextRequest) {
 
     if (!resumeText || resumeText.trim().length < 50) {
       return NextResponse.json({ 
-        error: 'Could not extract text from file. Please upload a TXT file or paste your resume text.',
-        suggestion: 'For PDF/DOCX support, please convert to TXT format first.'
+        error: 'Could not extract text from resume or resume is too short. Please upload a TXT file or paste resume text.',
       }, { status: 400 });
     }
 
-    const analysis = analyzeResume(resumeText, jobDescription);
+    // Parse job skills from comma-separated string
+    const requiredSkills = jobSkills.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    const requirements = jobRequirements ? jobRequirements.split('\n').map(r => r.trim()).filter(r => r.length > 0) : [];
+
+    // REAL COMPLEX ANALYSIS: Compare resume with THIS specific job
+    const analysis = performDeepJobComparison(resumeText, jobDescription, requiredSkills, requirements);
 
     return NextResponse.json({
       success: true,
       analysis,
-      filename: file.name,
+      message: `Deep analysis complete! Compared your resume against the specific job requirements.`,
     });
+
   } catch (error: any) {
-    console.error('Resume analysis error:', error);
-    return NextResponse.json({ error: 'Failed to analyze resume', details: error.message }, { status: 500 });
+    console.error('❌ ATS analysis error:', error);
+    return NextResponse.json({ 
+      error: 'Failed to analyze resume', 
+      details: error.message 
+    }, { status: 500 });
   }
+}
+
+// REAL COMPLEX COMPARISON FUNCTION
+function performDeepJobComparison(
+  resumeText: string,
+  jobDescription: string,
+  requiredSkills: string[],
+  requirements: string[]
+) {
+  const resumeLower = resumeText.toLowerCase();
+  const jobDescLower = jobDescription.toLowerCase();
+  
+  // 1. SKILLS ANALYSIS (40 points)
+  const matchedSkills: string[] = [];
+  const missingSkills: string[] = [];
+  
+  for (const skill of requiredSkills) {
+    const skillLower = skill.toLowerCase();
+    if (resumeLower.includes(skillLower)) {
+      matchedSkills.push(skill);
+    } else {
+      missingSkills.push(skill);
+    }
+  }
+  
+  const skillsScore = requiredSkills.length > 0 
+    ? (matchedSkills.length / requiredSkills.length) * 40 
+    : 0;
+  
+  // 2. KEYWORDS FROM JOB DESCRIPTION (25 points)
+  const jobKeywords = extractImportantKeywords(jobDescription);
+  const matchedKeywords: string[] = [];
+  const missingKeywords: string[] = [];
+  
+  for (const keyword of jobKeywords) {
+    if (resumeLower.includes(keyword.toLowerCase())) {
+      matchedKeywords.push(keyword);
+    } else {
+      missingKeywords.push(keyword);
+    }
+  }
+  
+  const keywordScore = jobKeywords.length > 0
+    ? (matchedKeywords.length / jobKeywords.length) * 25
+    : 0;
+  
+  // 3. REQUIREMENTS MATCH (20 points)
+  const matchedRequirements: string[] = [];
+  const missingRequirements: string[] = [];
+  
+  for (const req of requirements) {
+    const reqLower = req.toLowerCase();
+    // Check if requirement keywords are in resume
+    const reqWords = reqLower.split(' ').filter(w => w.length > 3);
+    const matchCount = reqWords.filter(w => resumeLower.includes(w)).length;
+    
+    if (matchCount > reqWords.length / 2) {
+      matchedRequirements.push(req);
+    } else {
+      missingRequirements.push(req);
+    }
+  }
+  
+  const requirementScore = requirements.length > 0
+    ? (matchedRequirements.length / requirements.length) * 20
+    : 10;
+  
+  // 4. EXPERIENCE INDICATORS (10 points)
+  let experienceScore = 0;
+  const yearsMatch = resumeText.match(/(\d+)\+?\s*(years?|yrs?)/gi);
+  if (yearsMatch) {
+    const maxYears = Math.max(...yearsMatch.map(m => parseInt(m.match(/\d+/)?.[0] || '0')));
+    if (maxYears >= 5) experienceScore = 10;
+    else if (maxYears >= 3) experienceScore = 7;
+    else if (maxYears >= 1) experienceScore = 5;
+    else experienceScore = 3;
+  }
+  
+  // 5. RESUME QUALITY (5 points)
+  const hasEmail = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(resumeText);
+  const hasPhone = /(\+\d{1,3}[- ]?)?\d{10}|\(\d{3}\)\s*\d{3}[- ]?\d{4}/i.test(resumeText);
+  const qualityScore = (hasEmail ? 2.5 : 0) + (hasPhone ? 2.5 : 0);
+  
+  // Calculate total score
+  const totalScore = Math.round(skillsScore + keywordScore + requirementScore + experienceScore + qualityScore);
+  
+  // Generate SPECIFIC suggestions
+  const suggestions: string[] = [];
+  
+  if (missingSkills.length > 0) {
+    suggestions.push(`🔴 CRITICAL: Add these required skills to your resume: ${missingSkills.slice(0, 5).join(', ')}`);
+  }
+  
+  if (missingSkills.length > 5) {
+    suggestions.push(`⚠️ You're missing ${missingSkills.length} out of ${requiredSkills.length} required skills`);
+  }
+  
+  if (missingKeywords.length > 0) {
+    suggestions.push(`📝 Include these keywords from job description: ${missingKeywords.slice(0, 3).join(', ')}`);
+  }
+  
+  if (missingRequirements.length > 0 && missingRequirements.length <= 3) {
+    suggestions.push(`📋 Address these requirements: ${missingRequirements.join('; ')}`);
+  }
+  
+  if (matchedSkills.length > 0) {
+    suggestions.push(`✅ GOOD: You have ${matchedSkills.length}/${requiredSkills.length} required skills: ${matchedSkills.slice(0, 3).join(', ')}${matchedSkills.length > 3 ? '...' : ''}`);
+  }
+  
+  if (totalScore < 50) {
+    suggestions.push(`⚠️ LOW MATCH: Your resume doesn't align well with this specific job. Consider targeting roles that match your current skills better.`);
+  } else if (totalScore < 70) {
+    suggestions.push(`📈 MODERATE MATCH: You have some relevant skills. Highlight your ${matchedSkills.slice(0, 2).join(' and ')} experience more prominently.`);
+  } else {
+    suggestions.push(`🎯 STRONG MATCH: Your profile aligns well! Make sure to emphasize your ${matchedSkills.slice(0, 3).join(', ')} experience.`);
+  }
+  
+  return {
+    overallScore: Math.min(totalScore, 100),
+    breakdown: {
+      skills: Math.round(skillsScore),
+      keywords: Math.round(keywordScore),
+      requirements: Math.round(requirementScore),
+      experience: experienceScore,
+      quality: qualityScore,
+    },
+    matchedSkills,
+    missingSkills,
+    matchedKeywords: matchedKeywords.slice(0, 10),
+    missingKeywords: missingKeywords.slice(0, 10),
+    matchedRequirements,
+    missingRequirements,
+    suggestions,
+    strengths: matchedSkills.length > requiredSkills.length / 2 
+      ? [`Strong skill match (${matchedSkills.length}/${requiredSkills.length})`]
+      : [],
+    improvements: missingSkills.length > 0 
+      ? [`Add ${missingSkills.length} missing skills`]
+      : [],
+  };
+}
+
+// Extract important keywords from job description
+function extractImportantKeywords(jobDescription: string): string[] {
+  const text = jobDescription.toLowerCase();
+  const keywords: string[] = [];
+  
+  // Look for action verbs and responsibilities
+  const actionVerbs = ['develop', 'design', 'implement', 'manage', 'lead', 'create', 'build', 'maintain', 'collaborate', 'analyze'];
+  actionVerbs.forEach(verb => {
+    if (text.includes(verb)) keywords.push(verb);
+  });
+  
+  // Look for qualifications
+  const qualifications = ['degree', 'bachelor', 'master', 'certification', 'experience', 'knowledge'];
+  qualifications.forEach(qual => {
+    if (text.includes(qual)) keywords.push(qual);
+  });
+  
+  // Look for tools and technologies (beyond listed skills)
+  const tools = ['api', 'database', 'cloud', 'testing', 'deployment', 'architecture', 'framework'];
+  tools.forEach(tool => {
+    if (text.includes(tool)) keywords.push(tool);
+  });
+  
+  return [...new Set(keywords)]; // Remove duplicates
 }
 
