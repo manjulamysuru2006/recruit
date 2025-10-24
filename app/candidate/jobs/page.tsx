@@ -3,13 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import CandidateSidebar from '@/components/CandidateSidebar';
 import {
-  LayoutDashboard,
-  Briefcase,
-  FileText,
-  MessageSquare,
-  Settings,
-  LogOut,
   Search,
   MapPin,
   DollarSign,
@@ -18,6 +13,8 @@ import {
   Filter,
   Bookmark,
   BookmarkCheck,
+  Target,
+  TrendingUp,
 } from 'lucide-react';
 
 export default function CandidateJobsPage() {
@@ -93,71 +90,50 @@ export default function CandidateJobsPage() {
     );
   };
 
+  const calculateMatchScore = (job: any): number => {
+    // Simple AI match score calculation based on job attributes
+    // In a real app, this would use the ML models from lib/ml-models.ts
+    let score = 50; // Base score
+    
+    // Boost for remote jobs
+    if (job.location?.remote) score += 15;
+    
+    // Boost for salary range
+    if (job.salary?.max && job.salary.max > 80000) score += 10;
+    
+    // Boost for tech skills
+    const techSkills = ['JavaScript', 'Python', 'React', 'Node.js', 'TypeScript'];
+    const matchingSkills = job.skills?.filter((skill: string) => 
+      techSkills.some(ts => skill.toLowerCase().includes(ts.toLowerCase()))
+    ).length || 0;
+    score += matchingSkills * 5;
+    
+    return Math.min(100, Math.max(0, score));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 fixed h-full">
-        <div className="p-6">
-          <div className="flex items-center gap-2 mb-8">
-            <Briefcase className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold">Loom</span>
-          </div>
-
-          <nav className="space-y-2">
-            <Link
-              href="/candidate/dashboard"
-              className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
-            >
-              <LayoutDashboard className="w-5 h-5" />
-              <span>Dashboard</span>
-            </Link>
-            <Link
-              href="/candidate/jobs"
-              className="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg font-medium"
-            >
-              <Search className="w-5 h-5" />
-              <span>Find Jobs</span>
-            </Link>
-            <Link
-              href="/candidate/applications"
-              className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
-            >
-              <FileText className="w-5 h-5" />
-              <span>Applications</span>
-            </Link>
-            <Link
-              href="/candidate/messages"
-              className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
-            >
-              <MessageSquare className="w-5 h-5" />
-              <span>Messages</span>
-            </Link>
-            <Link
-              href="/candidate/profile"
-              className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
-            >
-              <Settings className="w-5 h-5" />
-              <span>Profile</span>
-            </Link>
-          </nav>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-200">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg w-full"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </button>
-        </div>
-      </div>
+      <CandidateSidebar />
 
       {/* Main Content */}
       <div className="flex-1 ml-64">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-8 py-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Find Jobs</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Find Jobs</h1>
+          
+          {/* AI Features Promo Banner */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-purple-900 mb-1">AI-Powered Job Matching</h3>
+                <p className="text-sm text-purple-700">Each job shows an AI match score based on your profile. Try our <Link href="/candidate/ats-scanner" className="underline font-medium">AI Resume Scanner</Link> for personalized recommendations!</p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-purple-600" />
+            </div>
+          </div>
           
           {/* Search Filters */}
           <div className="grid grid-cols-3 gap-4">
@@ -219,15 +195,28 @@ export default function CandidateJobsPage() {
             <div className="space-y-4">
               {jobs.map((job: any) => {
                 const hasApplied = appliedJobIds.includes(job._id);
+                const matchScore = calculateMatchScore(job);
+                const matchColor = matchScore >= 80 ? 'bg-green-500' : matchScore >= 60 ? 'bg-yellow-500' : 'bg-gray-400';
+                const matchTextColor = matchScore >= 80 ? 'text-green-700' : matchScore >= 60 ? 'text-yellow-700' : 'text-gray-700';
+                
                 return (
                   <Link
                     key={job._id}
                     href={`/candidate/jobs/${job._id}`}
-                    className={`block bg-white rounded-xl border p-6 hover:shadow-lg transition-all ${
+                    className={`block bg-white rounded-xl border p-6 hover:shadow-lg transition-all relative ${
                       hasApplied ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-blue-300'
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-4">
+                    {/* AI Match Score Badge - Prominent */}
+                    <div className="absolute top-4 right-4">
+                      <div className={`flex items-center gap-2 px-4 py-2 ${matchColor} bg-opacity-10 border-2 border-current rounded-full ${matchTextColor}`}>
+                        <Sparkles className="w-5 h-5" />
+                        <span className="font-bold text-lg">{matchScore}%</span>
+                        <span className="text-sm font-medium">Match</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start justify-between mb-4 pr-32">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-xl font-bold text-gray-900">{job.title}</h3>
