@@ -3,21 +3,128 @@
 import CandidateSidebar from '@/components/CandidateSidebar';
 import { 
   Brain, 
-  Sparkles, 
+  DollarSign, 
   Target, 
   TrendingUp, 
-  Zap, 
-  Network, 
-  Eye,
-  Layers,
-  Activity,
-  Award,
+  Lightbulb, 
+  MessageSquare, 
+  Loader2,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  Award
 } from 'lucide-react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+
+interface SalaryPrediction {
+  predictedSalary: number;
+  minRange: number;
+  maxRange: number;
+  confidence: number;
+  basedOnJobs: number;
+}
+
+interface SkillRecommendation {
+  skill: string;
+  demand: number;
+  appearsInJobs: number;
+  priority: 'high' | 'medium' | 'low';
+}
+
+interface CareerPathJob {
+  title: string;
+  company: string;
+  experienceLevel: string;
+  requiredSkills: string[];
+  salary: { min: number; max: number };
+}
+
+interface InterviewQuestion {
+  question: string;
+  category: string;
+  difficulty: string;
+}
 
 export default function AIFeaturesPage() {
+  const [loading, setLoading] = useState(true);
+  const [salaryPrediction, setSalaryPrediction] = useState<SalaryPrediction | null>(null);
+  const [skillRecommendations, setSkillRecommendations] = useState<SkillRecommendation[]>([]);
+  const [careerPath, setCareerPath] = useState<CareerPathJob[]>([]);
+  const [interviewQuestions, setInterviewQuestions] = useState<InterviewQuestion[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAIFeatures();
+  }, []);
+
+  const fetchAIFeatures = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setError('Please login to view AI features');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch all AI features in parallel
+      const [salaryRes, skillsRes, careerRes, interviewRes] = await Promise.all([
+        fetch('/api/ml/salary-prediction', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch('/api/ml/skill-recommendations', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch('/api/ml/career-path', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch('/api/ml/interview-prep', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+
+      if (salaryRes.ok) {
+        const data = await salaryRes.json();
+        setSalaryPrediction(data);
+      }
+
+      if (skillsRes.ok) {
+        const data = await skillsRes.json();
+        setSkillRecommendations(data.recommendations || []);
+      }
+
+      if (careerRes.ok) {
+        const data = await careerRes.json();
+        setCareerPath(data.careerPath || []);
+      }
+
+      if (interviewRes.ok) {
+        const data = await interviewRes.json();
+        setInterviewQuestions(data.questions || []);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching AI features:', err);
+      setError('Failed to load AI features');
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex">
+        <CandidateSidebar />
+        <div className="flex-1 ml-64 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading AI Features...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <CandidateSidebar />
@@ -26,322 +133,245 @@ export default function AIFeaturesPage() {
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 text-white px-8 py-12">
           <div className="max-w-5xl mx-auto">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
-                <Brain className="w-10 h-10" />
-              </div>
+            <div className="flex items-center gap-4">
+              <Brain className="w-12 h-12" />
               <div>
-                <h1 className="text-4xl font-bold mb-2">🤖 AI-Powered Recruiting</h1>
-                <p className="text-xl opacity-90">Advanced Machine Learning & Neural Networks at Your Service</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-4 gap-4 mt-8">
-              <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-                <div className="text-3xl font-bold mb-1">4</div>
-                <div className="text-sm opacity-90">AI Models</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-                <div className="text-3xl font-bold mb-1">50+</div>
-                <div className="text-sm opacity-90">Features Analyzed</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-                <div className="text-3xl font-bold mb-1">128</div>
-                <div className="text-sm opacity-90">Neural Network Nodes</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-                <div className="text-3xl font-bold mb-1">Real-time</div>
-                <div className="text-sm opacity-90">Processing</div>
+                <h1 className="text-4xl font-bold mb-2">AI-Powered Career Insights</h1>
+                <p className="text-xl opacity-90">Real data-driven recommendations for your career</p>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Error State */}
+        {error && (
+          <div className="max-w-5xl mx-auto px-8 py-4">
+            <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          </div>
+        )}
+
         {/* Main Content */}
         <div className="max-w-5xl mx-auto px-8 py-8 space-y-8">
-          {/* AI Models Section */}
-          <div className="bg-white rounded-2xl border-2 border-purple-200 p-8 shadow-lg">
+          {/* Salary Prediction */}
+          <div className="bg-white rounded-2xl border-2 border-green-200 p-8 shadow-lg">
             <div className="flex items-center gap-3 mb-6">
-              <Layers className="w-8 h-8 text-purple-600" />
-              <h2 className="text-2xl font-bold text-gray-900">Our AI Models</h2>
+              <DollarSign className="w-8 h-8 text-green-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Salary Prediction</h2>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
-              {/* Job Matching Model */}
-              <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center">
-                    <Target className="w-7 h-7 text-white" />
+            {salaryPrediction ? (
+              <div>
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6">
+                  <div className="text-center mb-4">
+                    <div className="text-4xl font-bold text-green-600 mb-2">
+                      ${salaryPrediction.predictedSalary.toLocaleString()}
+                    </div>
+                    <div className="text-gray-600">Predicted Annual Salary</div>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900">Job Matching Neural Network</h3>
+                  <div className="flex items-center justify-center gap-4 text-sm text-gray-700">
+                    <div>
+                      <span className="font-semibold">Range:</span> ${salaryPrediction.minRange.toLocaleString()} - ${salaryPrediction.maxRange.toLocaleString()}
+                    </div>
+                    <div>•</div>
+                    <div>
+                      <span className="font-semibold">Confidence:</span> {Math.round(salaryPrediction.confidence * 100)}%
+                    </div>
+                    <div>•</div>
+                    <div>
+                      <span className="font-semibold">Based on:</span> {salaryPrediction.basedOnJobs} jobs
+                    </div>
+                  </div>
                 </div>
-                <p className="text-gray-700 mb-4">
-                  Deep learning model with 128→64→32 architecture, batch normalization, and dropout layers.
+                <p className="text-sm text-gray-600">
+                  This prediction is based on {salaryPrediction.basedOnJobs} real jobs from our database that match your skills and experience level.
                 </p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>50+ features</strong> from candidate & job data</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Sigmoid activation</strong> for probability scoring</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Real-time inference</strong> on every job</span>
-                  </div>
-                </div>
               </div>
-
-              {/* Salary Prediction Model */}
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center">
-                    <TrendingUp className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">Salary Prediction Engine</h3>
-                </div>
-                <p className="text-gray-700 mb-4">
-                  Regression neural network trained on 30 features with dropout regularization.
-                </p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Market-adjusted</strong> salary predictions</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Location-aware</strong> cost of living adjustment</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Confidence scores</strong> for transparency</span>
-                  </div>
-                </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>Upload your resume to get salary predictions based on your skills</p>
               </div>
-
-              {/* Resume Analyzer */}
-              <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center">
-                    <Eye className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">Advanced Resume Analyzer</h3>
-                </div>
-                <p className="text-gray-700 mb-4">
-                  NLP-powered resume scanner with technical skill extraction and sentiment analysis.
-                </p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>100+ technical skills</strong> detection</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Action verbs</strong> and power words analysis</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Section detection</strong> & structure scoring</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Skill Recommendation */}
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-                    <Network className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">Skill Recommendation Graph</h3>
-                </div>
-                <p className="text-gray-700 mb-4">
-                  Graph-based recommendation system analyzing skill relationships and job requirements.
-                </p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Knowledge graph</strong> of related skills</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Job-aware</strong> personalized suggestions</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span><strong>Trending skills</strong> prioritization</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Technical Architecture */}
-          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-8 text-white">
-            <div className="flex items-center gap-3 mb-6">
-              <Activity className="w-8 h-8" />
-              <h2 className="text-2xl font-bold">Technical Architecture</h2>
-            </div>
-
-            <div className="grid grid-cols-3 gap-6">
-              <div className="bg-white/10 backdrop-blur rounded-xl p-6">
-                <div className="text-3xl mb-3">🧠</div>
-                <h3 className="font-bold mb-2 text-lg">TensorFlow.js</h3>
-                <p className="text-sm opacity-90">
-                  Browser-based neural networks for real-time inference with zero latency
-                </p>
-              </div>
-
-              <div className="bg-white/10 backdrop-blur rounded-xl p-6">
-                <div className="text-3xl mb-3">⚡</div>
-                <h3 className="font-bold mb-2 text-lg">Real-time Processing</h3>
-                <p className="text-sm opacity-90">
-                  Instant AI predictions as you browse, no waiting for server responses
-                </p>
-              </div>
-
-              <div className="bg-white/10 backdrop-blur rounded-xl p-6">
-                <div className="text-3xl mb-3">🎯</div>
-                <h3 className="font-bold mb-2 text-lg">Multi-Feature Analysis</h3>
-                <p className="text-sm opacity-90">
-                  Analyzes skills, experience, education, location, salary, and 45+ more factors
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 bg-white/10 backdrop-blur rounded-xl p-6">
-              <h3 className="font-bold mb-4 text-lg">Neural Network Architecture</h3>
-              <div className="flex items-center gap-4">
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-white/20 rounded-lg flex items-center justify-center mb-2">
-                    <span className="text-2xl font-bold">50</span>
-                  </div>
-                  <div className="text-xs opacity-90">Input Features</div>
-                </div>
-                <ArrowRight className="w-6 h-6" />
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-white/20 rounded-lg flex items-center justify-center mb-2">
-                    <span className="text-2xl font-bold">128</span>
-                  </div>
-                  <div className="text-xs opacity-90">Hidden Layer 1</div>
-                </div>
-                <ArrowRight className="w-6 h-6" />
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-white/20 rounded-lg flex items-center justify-center mb-2">
-                    <span className="text-2xl font-bold">64</span>
-                  </div>
-                  <div className="text-xs opacity-90">Hidden Layer 2</div>
-                </div>
-                <ArrowRight className="w-6 h-6" />
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-white/20 rounded-lg flex items-center justify-center mb-2">
-                    <span className="text-2xl font-bold">32</span>
-                  </div>
-                  <div className="text-xs opacity-90">Hidden Layer 3</div>
-                </div>
-                <ArrowRight className="w-6 h-6" />
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-white/20 rounded-lg flex items-center justify-center mb-2">
-                    <span className="text-2xl font-bold">1</span>
-                  </div>
-                  <div className="text-xs opacity-90">Match Score</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Features in Action */}
+          {/* Skill Recommendations */}
           <div className="bg-white rounded-2xl border-2 border-blue-200 p-8 shadow-lg">
             <div className="flex items-center gap-3 mb-6">
-              <Sparkles className="w-8 h-8 text-blue-600" />
-              <h2 className="text-2xl font-bold text-gray-900">See AI in Action</h2>
+              <Lightbulb className="w-8 h-8 text-blue-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Recommended Skills to Learn</h2>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
-              <Link href="/candidate/jobs" className="group bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 border-2 border-purple-200 hover:border-purple-400 transition-all hover:shadow-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <Target className="w-10 h-10 text-purple-600" />
-                  <ArrowRight className="w-6 h-6 text-purple-600 group-hover:translate-x-2 transition-transform" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">AI Job Matching</h3>
-                <p className="text-gray-700 text-sm">
-                  Browse jobs with real-time AI match scores. Each job shows how well it matches your profile using our neural network.
-                </p>
-                <div className="mt-4 inline-block px-3 py-1 bg-purple-600 text-white text-sm rounded-full">
-                  🧠 Neural Network Powered
-                </div>
-              </Link>
-
-              <Link href="/candidate/ats-scanner" className="group bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border-2 border-orange-200 hover:border-orange-400 transition-all hover:shadow-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <Eye className="w-10 h-10 text-orange-600" />
-                  <ArrowRight className="w-6 h-6 text-orange-600 group-hover:translate-x-2 transition-transform" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">AI Resume Scanner</h3>
-                <p className="text-gray-700 text-sm">
-                  Analyze your resume with advanced NLP. Get instant feedback, ATS compatibility score, and improvement suggestions.
-                </p>
-                <div className="mt-4 inline-block px-3 py-1 bg-orange-600 text-white text-sm rounded-full">
-                  📊 NLP Analysis + 50+ Metrics
-                </div>
-              </Link>
-            </div>
+            {skillRecommendations.length > 0 ? (
+              <div className="space-y-4">
+                {skillRecommendations.map((skill, index) => (
+                  <div key={index} className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${
+                          skill.priority === 'high' ? 'bg-red-500' :
+                          skill.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                        }`}></div>
+                        <h3 className="text-lg font-bold text-gray-900">{skill.skill}</h3>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        skill.priority === 'high' ? 'bg-red-100 text-red-700' :
+                        skill.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {skill.priority.toUpperCase()} PRIORITY
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div>
+                        <span className="font-semibold">Demand:</span> {skill.demand}%
+                      </div>
+                      <div>•</div>
+                      <div>
+                        <span className="font-semibold">Appears in:</span> {skill.appearsInJobs} jobs you viewed
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>Browse jobs to get personalized skill recommendations</p>
+              </div>
+            )}
           </div>
 
-          {/* Why Our AI is Different */}
+          {/* Career Path */}
+          <div className="bg-white rounded-2xl border-2 border-purple-200 p-8 shadow-lg">
+            <div className="flex items-center gap-3 mb-6">
+              <TrendingUp className="w-8 h-8 text-purple-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Your Career Path</h2>
+            </div>
+
+            {careerPath.length > 0 ? (
+              <div className="space-y-4">
+                {careerPath.map((job, index) => (
+                  <div key={index} className="relative">
+                    {index < careerPath.length - 1 && (
+                      <div className="absolute left-6 top-16 w-0.5 h-full bg-purple-300"></div>
+                    )}
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 relative z-10">
+                        {index + 1}
+                      </div>
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200 flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900">{job.title}</h3>
+                            <p className="text-gray-600">{job.company}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-purple-600">{job.experienceLevel}</div>
+                            <div className="text-xs text-gray-600">
+                              ${job.salary.min.toLocaleString()} - ${job.salary.max.toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {job.requiredSkills.slice(0, 5).map((skill, idx) => (
+                            <span key={idx} className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
+                              {skill}
+                            </span>
+                          ))}
+                          {job.requiredSkills.length > 5 && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                              +{job.requiredSkills.length - 5} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>Upload your resume to see personalized career progression paths</p>
+              </div>
+            )}
+          </div>
+
+          {/* Interview Preparation */}
+          <div className="bg-white rounded-2xl border-2 border-orange-200 p-8 shadow-lg">
+            <div className="flex items-center gap-3 mb-6">
+              <MessageSquare className="w-8 h-8 text-orange-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Interview Preparation</h2>
+            </div>
+
+            {interviewQuestions.length > 0 ? (
+              <div className="space-y-4">
+                {interviewQuestions.map((q, index) => (
+                  <div key={index} className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-semibold">
+                            {q.category}
+                          </span>
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                            q.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
+                            q.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                          }`}>
+                            {q.difficulty}
+                          </span>
+                        </div>
+                        <p className="text-gray-900">{q.question}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>Apply to jobs to get interview questions based on job requirements</p>
+              </div>
+            )}
+          </div>
+
+          {/* How It Works */}
           <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 text-white">
             <div className="flex items-center gap-3 mb-6">
               <Award className="w-8 h-8" />
-              <h2 className="text-2xl font-bold">Why Our AI is Different</h2>
+              <h2 className="text-2xl font-bold">How Our AI Works</h2>
             </div>
 
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 gap-6">
               <div>
-                <div className="text-4xl mb-3">🚀</div>
-                <h3 className="font-bold mb-2">Real Neural Networks</h3>
+                <div className="text-3xl mb-2">�</div>
+                <h3 className="font-bold mb-2">Salary Prediction</h3>
                 <p className="text-sm opacity-90">
-                  Not simple calculations - actual TensorFlow.js models with trained weights and layers
+                  Analyzes jobs in our database that match your skills, calculating average salaries with confidence scores based on sample size.
                 </p>
               </div>
 
               <div>
-                <div className="text-4xl mb-3">📊</div>
-                <h3 className="font-bold mb-2">Multi-Dimensional Analysis</h3>
+                <div className="text-3xl mb-2">🎯</div>
+                <h3 className="font-bold mb-2">Skill Recommendations</h3>
                 <p className="text-sm opacity-90">
-                  50+ features analyzed including skills, experience, education, location, and more
+                  Identifies skills you don't have that appear frequently in jobs you've viewed or applied to, prioritized by demand.
                 </p>
               </div>
 
               <div>
-                <div className="text-4xl mb-3">⚡</div>
-                <h3 className="font-bold mb-2">Instant Predictions</h3>
+                <div className="text-3xl mb-2">📈</div>
+                <h3 className="font-bold mb-2">Career Path</h3>
                 <p className="text-sm opacity-90">
-                  Browser-based inference means zero latency - see results as you browse
+                  Shows real job progressions from entry-level to senior positions in your field, based on actual job postings.
                 </p>
               </div>
 
               <div>
-                <div className="text-4xl mb-3">🎯</div>
-                <h3 className="font-bold mb-2">Personalized Results</h3>
+                <div className="text-3xl mb-2">�</div>
+                <h3 className="font-bold mb-2">Interview Prep</h3>
                 <p className="text-sm opacity-90">
-                  Every score is calculated specifically for your profile and preferences
-                </p>
-              </div>
-
-              <div>
-                <div className="text-4xl mb-3">🔍</div>
-                <h3 className="font-bold mb-2">Transparent Scoring</h3>
-                <p className="text-sm opacity-90">
-                  See exactly why each job scored the way it did with detailed breakdowns
-                </p>
-              </div>
-
-              <div>
-                <div className="text-4xl mb-3">🌟</div>
-                <h3 className="font-bold mb-2">Continuous Learning</h3>
-                <p className="text-sm opacity-90">
-                  Models improve with usage, learning from successful matches
+                  Generates interview questions based on the actual job descriptions and requirements of positions you've applied to.
                 </p>
               </div>
             </div>
