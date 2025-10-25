@@ -70,6 +70,16 @@ const UserSchema = new Schema({
       strengths: [String],
       keywords: [String],
     },
+    topMatchingJobs: [{
+      jobId: { type: Schema.Types.ObjectId, ref: 'Job' },
+      jobTitle: String,
+      company: String,
+      matchScore: Number,
+      matchedSkills: [String],
+      missingSkills: [String],
+      experienceMatch: Boolean,
+      calculatedAt: Date,
+    }],
   },
   // Recruiter specific fields
   recruiterProfile: {

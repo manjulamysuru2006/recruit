@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
-import { resumeAnalyzer } from '@/lib/ml-models';
+import Job from '@/models/Job';
+import { calculateRealJobMatch } from '@/lib/real-matching';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,28 +70,53 @@ export async function POST(request: NextRequest) {
         try {
           const resumeText = await resumeFile.text();
           
-          // Use AI Resume Analyzer to extract skills
-          const analysis = resumeAnalyzer.analyzeResume(resumeText);
+          // Extract skills from resume (simple keyword extraction)
+          const extractedSkills = extractSkillsFromResume(resumeText);
+          userData.candidateProfile.skills = extractedSkills;
           
-          // Extract skills from the analysis
-          if (analysis.technicalSkills && analysis.technicalSkills.length > 0) {
-            userData.candidateProfile.skills = [...new Set([
-              ...analysis.technicalSkills,
-              ...analysis.softSkills || []
-            ])];
+          // Store resume text for REAL matching
+          userData.candidateProfile.resumeText = resumeText;
+          
+          console.log(`✅ Extracted ${extractedSkills.length} skills from resume`);
+          
+          // REAL JOB MATCHING: Compare with ALL active jobs
+          const activeJobs = await Job.find({ status: 'active' }).limit(50);
+          
+          if (activeJobs.length > 0) {
+            const jobMatches: any[] = [];
+            
+            for (const job of activeJobs) {
+              // Use REAL matching function
+              const matchResult = calculateRealJobMatch(resumeText, extractedSkills, job);
+              
+              // Only store jobs with some match
+              if (matchResult.matchScore > 0) {
+                jobMatches.push({
+                  jobId: job._id,
+                  jobTitle: job.title,
+                  company: job.company,
+                  matchScore: matchResult.matchScore,
+                  matchedSkills: matchResult.matchedSkills,
+                  missingSkills: matchResult.missingSkills,
+                  experienceMatch: matchResult.experienceMatch,
+                  calculatedAt: new Date()
+                });
+              }
+            }
+            
+            // Sort by match score and take top 10
+            const topMatches = jobMatches
+              .sort((a, b) => b.matchScore - a.matchScore)
+              .slice(0, 10);
+            
+            userData.candidateProfile.topMatchingJobs = topMatches;
+            
+            console.log(`✅ Found ${topMatches.length} matching jobs for candidate`);
+            console.log(`Top match: ${topMatches[0]?.jobTitle} - ${topMatches[0]?.matchScore}%`);
           }
-
-          // Store resume text for later use
-          userData.candidateProfile.resumeText = resumeText.substring(0, 10000); // Store first 10k chars
-          userData.candidateProfile.resumeAnalysis = {
-            score: analysis.score,
-            technicalSkills: analysis.technicalSkills,
-            softSkills: analysis.softSkills,
-            strengths: analysis.strengths,
-            keywords: analysis.keywords,
-          };
+          
         } catch (resumeError) {
-          console.error('Resume processing error:', resumeError);
+          console.error('❌ Resume processing error:', resumeError);
           // Continue registration even if resume processing fails
         }
       }
@@ -95,21 +124,54 @@ export async function POST(request: NextRequest) {
 
     // Create user
     const user = await User.create(userData);
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     return NextResponse.json(
       {
         message: 'User created successfully',
+        token,
         userId: user._id,
         skillsExtracted: userData.candidateProfile?.skills?.length || 0,
+        matchingJobs: userData.candidateProfile?.topMatchingJobs?.length || 0,
       },
       { status: 201 }
     );
   } catch (error: any) {
-    console.error('Registration error:', error);
+    console.error('❌ Registration error:', error);
     return NextResponse.json(
       { error: 'Failed to create user', details: error.message },
       { status: 500 }
     );
   }
+}
+
+// Simple skill extraction function
+function extractSkillsFromResume(text: string): string[] {
+  const commonSkills = [
+    'javascript', 'typescript', 'python', 'java', 'c++', 'c#', 'php', 'ruby', 'go', 'rust',
+    'react', 'angular', 'vue', 'next.js', 'node.js', 'express', 'django', 'flask', 'spring',
+    'html', 'css', 'sass', 'tailwind', 'bootstrap',
+    'sql', 'mongodb', 'postgresql', 'mysql', 'redis', 'elasticsearch',
+    'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins', 'terraform',
+    'git', 'github', 'gitlab', 'agile', 'scrum', 'rest api', 'graphql',
+    'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'data analysis',
+  ];
+  
+  const lowerText = text.toLowerCase();
+  const foundSkills: string[] = [];
+  
+  for (const skill of commonSkills) {
+    if (lowerText.includes(skill.toLowerCase())) {
+      foundSkills.push(skill);
+    }
+  }
+  
+  return [...new Set(foundSkills)]; // Remove duplicates
 }
 
