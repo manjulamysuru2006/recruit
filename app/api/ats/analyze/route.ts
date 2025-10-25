@@ -248,15 +248,6 @@ async function analyzeResumeForJob(resumeText: string, jobId?: string) {
     });
   }
 
-  // Job matching (if job description provided)
-  let matchScore = 0;
-  if (jobDescription) {
-    const jobText = jobDescription.toLowerCase();
-    const jobKeywords = jobText.split(/\s+/).filter((word: string) => word.length > 4);
-    const matchingKeywords = jobKeywords.filter((keyword: string) => text.includes(keyword));
-    matchScore = Math.round((matchingKeywords.length / jobKeywords.length) * 100);
-  }
-
   return {
     overallScore: Math.min(Math.round(score), 100),
     breakdown: {
@@ -273,7 +264,6 @@ async function analyzeResumeForJob(resumeText: string, jobId?: string) {
     improvements,
     feedback,
     wordCount,
-    matchScore,
     atsCompatibility: score > 70 ? 'Excellent' : score > 50 ? 'Good' : score > 30 ? 'Fair' : 'Needs Improvement',
   };
 }
